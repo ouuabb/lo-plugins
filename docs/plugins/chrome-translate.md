@@ -106,10 +106,17 @@ async watch(source, onChange) {
 
 ## 配置
 
-在 lo 仓库的插件配置中设置 `exportFilePath`：
+插件在 manifest 声明 `exportFilePath` 配置项（string 类型），用户通过 `lo plugin config` 命令设置 Chrome 扩展导出的翻译记录文件路径：
 
-```json
-{
-  "exportFilePath": "/path/to/records.json"
-}
+```bash
+# 查看当前配置（含默认值与当前值）
+lo plugin config chrome-translate
+
+# 设置导出文件路径（立即生效，无需 reload）
+lo plugin config chrome-translate exportFilePath /path/to/records.json
+
+# 也可在 discover 时通过 source 参数临时指定路径
+lo plugin discover chrome-translate /path/to/records.json
 ```
+
+设置后，discover 通道（`lo plugin discover chrome-translate`）会从该路径读取翻译记录，HTTP 通道（Chrome 扩展实时推送）不受影响。
