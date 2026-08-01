@@ -186,12 +186,14 @@ describe('reader HTML 页面', () => {
     expect(res._result.endData).toContain('EPUB Reader');
   });
 
-  test('缺少 rid 参数返回 400', async () => {
+  test('无 rid 时返回用法提示页', async () => {
     const req = createMockReq('/api/plugins/epub-reader/reader');
     const res = createMockRes();
     await handlers.serveReaderPage(req, res);
-    expect(res._result.statusCode).toBe(400);
-    expect(res._result.data.error).toContain('rid');
+    expect(res._result.ended).toBe(true);
+    expect(res._result.headers['Content-Type']).toContain('text/html');
+    expect(res._result.endData).toContain('rid');
+    expect(res._result.endData).toContain('lo import');
   });
 });
 

@@ -106,6 +106,37 @@ async function getBook(ctx, rid) {
   return book;
 }
 
+/**
+ * 无 rid 时的用法提示页
+ */
+function renderUsagePage() {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EPUB Reader</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { background: #16213e; border-radius: 12px; padding: 40px; max-width: 480px; text-align: center; }
+    h1 { color: #00d9ff; font-size: 22px; margin-bottom: 16px; }
+    p { color: #888; font-size: 14px; line-height: 1.8; margin-bottom: 8px; }
+    code { color: #00d9ff; background: #0f3460; padding: 2px 8px; border-radius: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>EPUB Reader</h1>
+    <p>需要指定书籍 rid 参数</p>
+    <p>用法：<code>?rid=&lt;resource_id&gt;</code></p>
+    <p style="margin-top:16px">导入书籍：<code>lo import &lt;file.epub&gt;</code></p>
+    <p>查看书籍：<code>lo ext epub:info &lt;rid&gt;</code></p>
+  </div>
+</body>
+</html>`;
+}
+
 // ── handler 工厂：每个端点返回一个 (req, res) => Promise ──
 
 /**
@@ -119,7 +150,11 @@ function createHandlers(ctx) {
     async serveReaderPage(req, res) {
       const q = parseQuery(req);
       if (!q.rid) {
-        return res.status(400).json({ error: '缺少 rid 参数' });
+        const html = renderUsagePage();
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.end(html);
+        return;
       }
       const html = getReaderHtml();
       res.setHeader('Content-Type', 'text/html; charset=utf-8');

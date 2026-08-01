@@ -100,15 +100,15 @@ describe('EpubReaderPlugin register', () => {
     plugin.register(ctx);
 
     const cmdRegs = ctx._registry.registered.filter(r => r.extType === 'commands');
-    expect(cmdRegs).toHaveLength(20); // 8 CLI + 12 HTTP
+    expect(cmdRegs).toHaveLength(21); // 9 CLI + 12 HTTP
 
     // CLI 命令（有 run 函数）
     const cliCmds = cmdRegs.filter(r => typeof r.handler.run === 'function');
-    expect(cliCmds).toHaveLength(8);
+    expect(cliCmds).toHaveLength(9);
     const cliKeys = cliCmds.map(r => r.key).sort();
     expect(cliKeys).toEqual([
       'epub:bookmark', 'epub:bookmarks', 'epub:highlight', 'epub:highlights',
-      'epub:info', 'epub:note', 'epub:notes', 'epub:read',
+      'epub:info', 'epub:note', 'epub:notes', 'epub:open', 'epub:read',
     ]);
 
     // HTTP 端点（有 method/path/handler）

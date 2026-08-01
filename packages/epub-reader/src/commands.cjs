@@ -413,10 +413,52 @@ function readStdin() {
   });
 }
 
+// ── epub:open — 浏览器打开 Web 阅读器 ──
+
+async function open(args, ctx) {
+  const { repo, logger } = ctx;
+  const rid = args[0];
+  if (!rid) {
+    logger.log('用法: lo ext epub:open <rid>');
+    return;
+  }
+
+  // 确认资源存在
+  const resource = await repo.getResource(rid);
+  if (!resource) {
+    logger.log('错误: 资源不存在');
+    return;
+  }
+  if (resource.type !== 'epub') {
+    logger.log(`错误: 资源类型不是 epub: ${resource.type}`);
+    return;
+  }
+
+  const url = `http://127.0.0.1:8765/api/plugins/epub-reader/reader?rid=${rid}`;
+  const { exec } = require('child_process');
+  const platform = process.platform;
+  let cmd;
+  if (platform === 'darwin') {
+    cmd = `open "${url}"`;
+  } else if (platform === 'win32') {
+    cmd = `start "" "${url}"`;
+  } else {
+    cmd = `xdg-open "${url}"`;
+  }
+  exec(cmd, (err) => {
+    if (err) {
+      logger.log(`无法自动打开浏览器，请手动访问:\n  ${url}`);
+    } else {
+      logger.log(`已在浏览器中打开: ${resource.title || resource.name || rid}`);
+    }
+  });
+}
+
 // ── 命令注册表 ──
 
 const commands = {
   'epub:read':      { run: read,       description: '终端阅读 EPUB（翻页、保存进度）' },
+  'epub:open':      { run: open,       description: '在浏览器中打开 Web 阅读器' },
   'epub:info':      { run: info,       description: '显示 EPUB 元信息与阅读状态' },
   'epub:note':      { run: note,       description: '创建阅读笔记 Resource 并关联到 EPUB' },
   'epub:notes':     { run: notes,      description: '列出 EPUB 的关联笔记' },

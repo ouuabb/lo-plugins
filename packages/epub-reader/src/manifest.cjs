@@ -39,6 +39,7 @@ module.exports = {
     resourceTypes: [
       {
         type: 'epub',
+        extensions: ['.epub'],
         metadataSchema: {
           title:          { type: 'string' },  // 书名
           author:         { type: 'string' },  // 作者
