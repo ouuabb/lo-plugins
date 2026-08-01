@@ -73,8 +73,12 @@ async function readManifest(pluginDir) {
  * @param {string} pluginDir
  * @returns {Promise<object>} index 条目
  */
-async function buildPlugin(pluginDir) {
+async function buildPlugin(pluginDir, outputDir) {
   const manifest = await readManifest(pluginDir);
+
+  // outputDir 默认为 DIST_DIR；测试可传入独立目录避免并行竞态
+  const distDir = outputDir || DIST_DIR;
+  await fs.ensureDir(distDir);
 
   // 校验 main 入口存在
   const mainPath = path.join(pluginDir, manifest.main);
@@ -103,7 +107,7 @@ async function buildPlugin(pluginDir) {
   }
 
   const tarballName = `${manifest.id}-${manifest.version}.tar.gz`;
-  const tarballPath = path.join(DIST_DIR, tarballName);
+  const tarballPath = path.join(distDir, tarballName);
 
   await tar.create(
     {
