@@ -20,6 +20,17 @@ npm install
 npm test
 ```
 
+## 构建插件包（分发）
+
+将插件源码打包为可分发的 tar.gz 插件包与 `index.json` 分发清单（供 lo 插件仓库分发安装）：
+
+```bash
+npm run build            # 打包全部插件 → dist/
+npm run build:packages -- --plugin <id>   # 只打包指定插件
+```
+
+详见 [docs/guide/development.md](docs/guide/development.md)。
+
 ## 插件列表
 
 | 插件 | 说明 |

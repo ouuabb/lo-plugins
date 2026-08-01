@@ -1,5 +1,46 @@
 # 开发指南
 
+## 构建插件包（P2-1 新增）
+
+`scripts/build.cjs` 将各插件源码打包为分发包，供 lo 插件仓库（Plugin Repository）分发安装：
+
+```bash
+# 打包全部插件 → dist/<id>-<ver>.tar.gz + dist/index.json
+npm run build
+
+# 只打包指定插件
+npm run build:packages -- --plugin chrome-translate
+```
+
+**包内容**：`plugin.json` + `src/`（含 `extension/` 与 `package.json`，若存在），排除 `test/`。
+
+**产物**：
+
+- `dist/<id>-<ver>.tar.gz` — 插件安装包（含插件入口与资源）
+- `dist/index.json` — 分发清单（Plugin Repository 读取的索引）
+
+```json
+[{
+  "id": "chrome-translate",
+  "name": "Chrome 划词翻译",
+  "version": "0.1.0",
+  "main": "src/index.cjs",
+  "downloadUrl": "chrome-translate-0.1.0.tar.gz",
+  "checksum": "5f7cc398...",
+  "size": 10412
+}]
+```
+
+`dist/` 为构建产物，已加入 `.gitignore`，不提交仓库。
+
+**发布**：CI 在 `main` 分支 push 后自动执行 `npm run build` 并把 `dist/` 发布到 `gh-pages` 分支（需在仓库 Settings → Pages 中设置 Source 为 `gh-pages`）。发布后即成为可用的 Plugin Repository，官方地址：
+
+```
+https://ouuabb.github.io/lo-plugins/index.json
+```
+
+用户侧通过 `lo plugin install` 从该地址安装（可用 `LO_PLUGIN_REGISTRY` 环境变量覆盖）。
+
 ## 基于 lo-sdk 开发
 
 所有插件基于 `@lo/sdk` 开发，与 lo Core 解耦。SDK 提供以下核心模块：
