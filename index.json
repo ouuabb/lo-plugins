@@ -7,7 +7,18 @@
     "author": "lo Project",
     "main": "src/index.cjs",
     "downloadUrl": "chrome-translate-0.1.0.tar.gz",
-    "checksum": "42cce9365432fbc2c6e4a7ac8ca3044b6039ee9c0f9193cb13be8c657fea7666",
-    "size": 11842
+    "checksum": "c8327ca7133a17c745342f86e19e01ad820d1c21b916504d87c8d51f8636c42b",
+    "size": 11844
+  },
+  {
+    "id": "epub-reader",
+    "name": "EPUB 阅读",
+    "version": "0.1.0",
+    "description": "为 EPUB 文件提供阅读、标注和笔记能力",
+    "author": "lo Project",
+    "main": "src/index.cjs",
+    "downloadUrl": "epub-reader-0.1.0.tar.gz",
+    "checksum": "125bf15e2684e754205d91ad678be4f9a728b2895c69018861bd22055eb2893c",
+    "size": 22489
   }
 ]
