@@ -30,6 +30,7 @@ export default defineConfig({
           text: '插件列表',
           items: [
             { text: 'Chrome 划词翻译', link: '/plugins/chrome-translate' },
+            { text: 'EPUB 阅读', link: '/plugins/epub-reader' },
           ],
         },
       ],
