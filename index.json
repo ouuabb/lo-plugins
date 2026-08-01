@@ -1,0 +1,13 @@
+[
+  {
+    "id": "chrome-translate",
+    "name": "Chrome 划词翻译",
+    "version": "0.1.0",
+    "description": "同步 Chrome 划词翻译记录到 lo 仓库",
+    "author": "lo Project",
+    "main": "src/index.cjs",
+    "downloadUrl": "chrome-translate-0.1.0.tar.gz",
+    "checksum": "0519bbd0abe58a4b3caf3834f9ba1c3e7a142e17d69422c30bb46f4b32aece5b",
+    "size": 10355
+  }
+]
