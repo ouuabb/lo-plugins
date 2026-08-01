@@ -57,3 +57,33 @@ jobs:
 
       - name: Build docs
         run: npm run docs:build
+
+  # P2-1: 发布插件包（dist/）到 GitHub Pages，充当 Plugin Repository（分发平台）。
+  # 仓库需在 Settings → Pages 中设置 Source 为 gh-pages 分支。
+  # 发布后官方仓库地址: https://ouuabb.github.io/lo-plugins/index.json
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, docs]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin packages
+        run: npm run build
+
+      - name: Deploy dist to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
