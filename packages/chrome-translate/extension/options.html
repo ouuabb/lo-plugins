@@ -58,9 +58,12 @@
   </select>
 
   <h2>同步</h2>
-  <label>lo HTTP 端点</label>
-  <input type="text" id="endpoint" placeholder="http://localhost:3000">
-  <div class="hint">lo 插件 HTTP 服务地址，翻译记录会实时 POST 到此地址</div>
+  <label>lo 仓库连接地址</label>
+  <input type="text" id="endpoint" placeholder="http://127.0.0.1:8765">
+  <div class="hint">
+    lo 仓库 HTTP 服务地址（<code>lo serve</code> 启动后监听的地址，默认端口 8765）。<br>
+    翻译记录会实时 POST 到此地址写入 lo 仓库。未配置时仅本地保存。
+  </div>
 
   <div class="row">
     <label><input type="checkbox" id="httpEnabled" checked> 启用 HTTP 实时推送（通道①）</label>

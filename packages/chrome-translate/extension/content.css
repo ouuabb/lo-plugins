@@ -36,8 +36,23 @@
 
 .lo-tr-hint {
   margin-top: 6px;
-  color: #4ecca3;
   font-size: 11px;
+}
+
+.lo-tr-hint-pending {
+  color: #a0a0b0;
+}
+
+.lo-tr-hint-ok {
+  color: #4ecca3;
+}
+
+.lo-tr-hint-warn {
+  color: #ffa940;
+}
+
+.lo-tr-hint-error {
+  color: #ff6b6b;
 }
 
 .lo-tr-loading {

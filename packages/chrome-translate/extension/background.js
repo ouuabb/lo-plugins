@@ -17,7 +17,7 @@
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'TRANSLATION_DONE') {
     handleTranslationRecord(msg.record)
-      .then(result => sendResponse({ ok: true, result }))
+      .then(status => sendResponse({ ok: true, status }))
       .catch(e => sendResponse({ ok: false, error: e.message }));
     return true; // 异步响应
   }
@@ -50,6 +50,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 /**
  * 处理一条翻译记录：先存本地，再推 HTTP
+ *
+ * 返回值语义明确区分两种状态：
+ *   localSaved — 本地兜底存储是否成功（防丢失）
+ *   synced     — lo 仓库是否真正同步成功（业务目标）
+ *   syncReason — 未同步成功的原因：'disabled' | 'no_endpoint' | undefined
+ *   syncError  — 网络/服务端错误信息（仅 synced=false 且非配置缺失时）
  */
 async function handleTranslationRecord(record) {
   // 生成 recordId（去重唯一键）
@@ -60,23 +66,29 @@ async function handleTranslationRecord(record) {
   record.timestamp = record.timestamp || new Date().toISOString();
 
   // 通道②：先写本地（兜底，保证不丢）
-  await saveToLocal(record);
+  const localSaved = await saveToLocal(record);
 
   // 通道①：HTTP 实时推送（失败不阻塞）
   const httpResult = await pushViaHttp(record);
 
-  return { local: true, http: httpResult };
+  return {
+    localSaved: localSaved !== false,
+    synced: httpResult.ok === true,
+    syncReason: httpResult.reason,
+    syncError: httpResult.error,
+  };
 }
 
 /**
  * 通道②：写入 chrome.storage.local
+ * @returns {Promise<boolean>} 始终返回 true（已存在视为已保存）；失败时抛错
  */
 async function saveToLocal(record) {
   const { records = [] } = await chrome.storage.local.get('records');
 
   // 本地也去重（同一 recordId 不重复存）
   if (records.some(r => r.recordId === record.recordId)) {
-    return; // 已存在，跳过
+    return true; // 已存在，视为已保存
   }
 
   records.push(record);
@@ -86,6 +98,8 @@ async function saveToLocal(record) {
   const stats = await getStats();
   stats.localCount = records.length;
   await chrome.storage.local.set({ stats });
+
+  return true;
 }
 
 /**
@@ -114,13 +128,21 @@ async function pushViaHttp(record) {
 
     const data = await resp.json();
 
-    // 更新统计
-    const stats = await getStats();
-    if (data.ok) {
-      stats.httpSuccess = (stats.httpSuccess || 0) + (data.created || 0);
-      stats.httpSkipped = (stats.httpSkipped || 0) + (data.skipped || 0);
-      stats.lastHttpAt = new Date().toISOString();
+    // HTTP 层（状态码非 2xx）或业务层（data.ok !== true）任一失败都视为同步失败
+    // 避免 lo 服务返回 500/400 时仍误报 synced=true
+    if (!resp.ok || !data.ok) {
+      const stats = await getStats();
+      stats.httpFail = (stats.httpFail || 0) + 1;
+      stats.lastHttpError = data.error || `HTTP ${resp.status}`;
+      await chrome.storage.local.set({ stats });
+      return { ok: false, error: data.error || `HTTP ${resp.status}` };
     }
+
+    // 成功：更新统计
+    const stats = await getStats();
+    stats.httpSuccess = (stats.httpSuccess || 0) + (data.created || 0);
+    stats.httpSkipped = (stats.httpSkipped || 0) + (data.skipped || 0);
+    stats.lastHttpAt = new Date().toISOString();
     await chrome.storage.local.set({ stats });
 
     return { ok: true, data };
@@ -193,3 +215,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     });
   }
 });
+
+// ── 测试导出（Chrome service worker 环境无 module，不影响扩展加载）──
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    handleTranslationRecord,
+    pushViaHttp,
+    saveToLocal,
+  };
+}

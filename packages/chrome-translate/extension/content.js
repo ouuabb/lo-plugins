@@ -10,6 +10,9 @@
 
 let popup = null;
 let hideTimer = null;
+// 自增请求序号，用于检测竞态：若 await 期间用户又触发新翻译，
+// currentRequestId 会变化，旧请求的后续 DOM 更新应被放弃
+let currentRequestId = 0;
 
 // 选中文字后 mouseup 触发翻译
 document.addEventListener('mouseup', (e) => {
@@ -34,8 +37,14 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 /**
  * 显示翻译弹窗
+ *
+ * 竞态防护：每次调用自增 requestId，await 后检查是否仍是当前请求。
+ * 若用户在翻译/同步期间又选了新词，currentRequestId 会变化，
+ * 旧请求放弃所有后续 DOM 更新，避免误更新新弹窗的 hint。
  */
 async function showTranslatePopup(text, e) {
+  const requestId = ++currentRequestId;
+
   ensurePopup();
   positionPopup(e);
 
@@ -49,30 +58,95 @@ async function showTranslatePopup(text, e) {
 
     const translation = await translateText(text, sourceLang, targetLang);
 
+    // 翻译 API 返回前若用户已触发新翻译，放弃本次更新
+    if (requestId !== currentRequestId) return;
+
+    // 先渲染翻译结果 + 同步中提示（避免硬编码"已同步到 lo"）
     popup.innerHTML = `
       <div class="lo-tr-original">${escapeHtml(text)}</div>
       <div class="lo-tr-divider"></div>
       <div class="lo-tr-result">${escapeHtml(translation)}</div>
-      <div class="lo-tr-hint">已同步到 lo</div>
+      <div class="lo-tr-hint lo-tr-hint-pending">同步中...</div>
     `;
 
-    // 发送翻译记录给 background（双通道同步）
-    chrome.runtime.sendMessage({
-      type: 'TRANSLATION_DONE',
-      record: {
-        original: text,
-        translation: translation,
-        sourceLang: sourceLang,
-        targetLang: targetLang,
-        context: getContextSentence(text),
-        url: location.href,
-        pageTitle: document.title,
-      },
+    // 发送翻译记录给 background（双通道同步），等待真实同步结果
+    const hint = await syncRecord({
+      original: text,
+      translation: translation,
+      sourceLang: sourceLang,
+      targetLang: targetLang,
+      context: getContextSentence(text),
+      url: location.href,
+      pageTitle: document.title,
     });
+
+    // syncRecord 返回前若用户已触发新翻译，放弃 hint 更新（避免误更新新弹窗）
+    if (requestId !== currentRequestId) return;
+
+    // 根据真实同步状态更新提示
+    const hintEl = popup.querySelector('.lo-tr-hint');
+    if (hintEl) {
+      hintEl.textContent = hint.text;
+      hintEl.className = `lo-tr-hint ${hint.className}`;
+    }
   } catch (err) {
+    // 翻译失败时也要检查竞态
+    if (requestId !== currentRequestId) return;
     popup.innerHTML =
       `<div class="lo-tr-error">翻译失败: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+/**
+ * 发送翻译记录给 background，等待并返回真实同步状态对应的提示文案
+ *
+ * 之前是 fire-and-forget，弹窗硬编码"已同步到 lo"，与真实同步状态脱钩。
+ * 现在通过回调读取 background 返回的 status，区分：
+ *   - synced=true              → 已同步到 lo
+ *   - syncReason='no_endpoint' → 仅本地保存（未配置 lo 端点）
+ *   - syncReason='disabled'    → 仅本地保存（HTTP 推送未启用）
+ *   - 其他失败                 → 同步失败：xxx（已本地保存）
+ */
+function syncRecord(record) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: 'TRANSLATION_DONE', record }, (resp) => {
+      // 扩展通信错误（如 background 未响应）
+      if (chrome.runtime.lastError) {
+        resolve({
+          text: '同步失败：扩展通信错误（已本地保存）',
+          className: 'lo-tr-hint-error',
+        });
+        return;
+      }
+      if (!resp || !resp.ok) {
+        resolve({
+          text: `同步失败：${(resp && resp.error) || '未知错误'}`,
+          className: 'lo-tr-hint-error',
+        });
+        return;
+      }
+      const status = resp.status || {};
+      if (status.synced) {
+        resolve({ text: '已同步到 lo', className: 'lo-tr-hint-ok' });
+      } else if (status.syncReason === 'no_endpoint') {
+        resolve({
+          text: '仅本地保存（未配置 lo 端点）',
+          className: 'lo-tr-hint-warn',
+        });
+      } else if (status.syncReason === 'disabled') {
+        resolve({
+          text: '仅本地保存（HTTP 推送未启用）',
+          className: 'lo-tr-hint-warn',
+        });
+      } else {
+        const err = status.syncError || '未知原因';
+        resolve({
+          text: `同步失败：${err}（已本地保存）`,
+          className: 'lo-tr-hint-error',
+        });
+      }
+    });
+  });
 }
 
 /**
@@ -139,4 +213,9 @@ function escapeHtml(s) {
   const div = document.createElement('div');
   div.textContent = s;
   return div.innerHTML;
+}
+
+// ── 测试导出（Chrome content script 环境无 module，不影响扩展加载）──
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { syncRecord };
 }
