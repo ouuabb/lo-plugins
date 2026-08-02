@@ -172,7 +172,7 @@ describe('getDataDir / getEpubFilePath', () => {
   });
 
   test('getEpubFilePath: 绝对路径原样返回', () => {
-    const abs = path.join('C:', 'books', 'a.epub');
+    const abs = path.join(__dirname, 'books', 'a.epub');
     expect(getEpubFilePath(repo, { type: 'epub', path: abs })).toBe(abs);
   });
 
@@ -183,7 +183,7 @@ describe('getDataDir / getEpubFilePath', () => {
   });
 
   test('getEpubFilePath: 回退到 filePath 字段', () => {
-    const abs = path.join('C:', 'books', 'b.epub');
+    const abs = path.join(__dirname, 'books', 'b.epub');
     expect(getEpubFilePath(repo, { type: 'epub', filePath: abs })).toBe(abs);
   });
 });
