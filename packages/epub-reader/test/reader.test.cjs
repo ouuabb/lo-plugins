@@ -126,7 +126,19 @@ function createMockContext(repoPath, epubFilePath) {
       return undefined;
     },
     getRepository() {
-      return { repoPath };
+      return {
+        repoPath,
+        relationService: {
+          async getByFromRidAndType(fromRid, type) {
+            return relations.filter(r => r.from_rid === fromRid && r.type === type);
+          },
+          async update(id, updates) {
+            const rel = relations.find(r => r.id === id);
+            if (rel && updates.metadata) rel.metadata = updates.metadata;
+            return rel;
+          },
+        },
+      };
     },
     resources: {
       async getByRid(rid) { return resources.get(rid) || null; },
@@ -136,6 +148,12 @@ function createMockContext(repoPath, epubFilePath) {
         const resource = { rid, ...candidate };
         resources.set(rid, resource);
         return resource;
+      },
+      async update(rid, patch) {
+        const r = resources.get(rid);
+        if (!r) return null;
+        if (patch.metadata) r.metadata = patch.metadata;
+        return r;
       },
       async list() { return Array.from(resources.values()); },
     },
@@ -254,7 +272,7 @@ describe('reader 阅读状态', () => {
   test('PUT 保存后 GET 能读取', async () => {
     // PUT
     const putReq = createMockReq('/api/plugins/epub-reader/state', {
-      rid: 'epub-001', location: 'chapter:0:offset:10', progress: 0.5,
+      rid: 'epub-001', location: 'epubcfi(0!/2:0,/2:0)', progress: 0.5,
     });
     putReq.method = 'PUT';
     const putRes = createMockRes();
@@ -266,7 +284,7 @@ describe('reader 阅读状态', () => {
     const getRes = createMockRes();
     await handlers.getState(getReq, getRes);
     expect(getRes._result.data.state).not.toBeNull();
-    expect(getRes._result.data.state.location).toBe('chapter:0:offset:10');
+    expect(getRes._result.data.state.location).toBe('epubcfi(0!/2:0,/2:0)');
     expect(getRes._result.data.state.progress).toBe(0.5);
   });
 
@@ -283,7 +301,7 @@ describe('reader 高亮', () => {
   test('POST 添加高亮后 GET 能列出', async () => {
     // POST
     const postReq = createMockReq('/api/plugins/epub-reader/highlights', {
-      rid: 'epub-001', location: 'chapter:0:offset:5', text: '第一章', style: 'green',
+      rid: 'epub-001', location: 'epubcfi(0!/2/1:5,/2/1:15)', text: '第一章', style: 'green',
     });
     postReq.method = 'POST';
     const postRes = createMockRes();
@@ -303,7 +321,7 @@ describe('reader 高亮', () => {
 
   test('POST 缺少 text 返回 400', async () => {
     const req = createMockReq('/api/plugins/epub-reader/highlights', {
-      rid: 'epub-001', location: 'chapter:0:offset:5',
+      rid: 'epub-001', location: 'epubcfi(0!/2/1:5,/2/1:15)',
     });
     req.method = 'POST';
     const res = createMockRes();
@@ -314,7 +332,7 @@ describe('reader 高亮', () => {
   test('DELETE 删除高亮', async () => {
     // 先添加
     const postReq = createMockReq('/api/plugins/epub-reader/highlights', {
-      rid: 'epub-001', location: 'chapter:0:offset:5', text: '内容',
+      rid: 'epub-001', location: 'epubcfi(0!/2/1:5,/2/1:15)', text: '内容',
     });
     postReq.method = 'POST';
     const postRes = createMockRes();
@@ -351,7 +369,7 @@ describe('reader 高亮', () => {
 describe('reader 书签', () => {
   test('POST 添加书签后 GET 能列出', async () => {
     const postReq = createMockReq('/api/plugins/epub-reader/bookmarks', {
-      rid: 'epub-001', location: 'chapter:1:offset:0', title: '第二章开头',
+      rid: 'epub-001', location: 'epubcfi(1!/2:0,/2:0)', title: '第二章开头',
     });
     postReq.method = 'POST';
     const postRes = createMockRes();
@@ -367,7 +385,7 @@ describe('reader 书签', () => {
 
   test('DELETE 删除书签', async () => {
     const postReq = createMockReq('/api/plugins/epub-reader/bookmarks', {
-      rid: 'epub-001', location: 'chapter:0:offset:0', title: '书签1',
+      rid: 'epub-001', location: 'epubcfi(0!/2:0,/2:0)', title: '书签1',
     });
     postReq.method = 'POST';
     const postRes = createMockRes();
@@ -390,7 +408,7 @@ describe('reader 笔记创建', () => {
       rid: 'epub-001',
       content: '这是我的阅读笔记',
       quote: '第一章的内容',
-      location: 'chapter:0:offset:10',
+      location: 'epubcfi(0!/2/1:10,/2/1:20)',
     });
     req.method = 'POST';
     const res = createMockRes();
@@ -417,6 +435,60 @@ describe('reader 笔记创建', () => {
     const res = createMockRes();
     await handlers.createNote(req, res);
     expect(res._result.statusCode).toBe(400);
+  });
+
+  test('同 location 第二次 POST 更新已有笔记而非新建', async () => {
+    // 第一次创建
+    const loc = 'epubcfi(0!/2/1:42,/2/1:52)';
+    const req1 = createMockReq('/api/plugins/epub-reader/notes', {
+      rid: 'epub-001', content: '原始笔记', quote: '原文', location: loc,
+    });
+    req1.method = 'POST';
+    const res1 = createMockRes();
+    await handlers.createNote(req1, res1);
+    expect(res1._result.data.created).toBe(true);
+    const noteRid = res1._result.data.note.rid;
+
+    // 第二次同 location → 更新
+    const req2 = createMockReq('/api/plugins/epub-reader/notes', {
+      rid: 'epub-001', content: '修改后的笔记', quote: '原文', location: loc,
+    });
+    req2.method = 'POST';
+    const res2 = createMockRes();
+    await handlers.createNote(req2, res2);
+    expect(res2._result.data.updated).toBe(true);
+    expect(res2._result.data.note.rid).toBe(noteRid); // 同一个 rid
+    expect(res2._result.data.note.metadata.content).toBe('修改后的笔记');
+
+    // 仍然只有 1 条 relation
+    expect(ctx._relations.filter(r => r.type === 'source-of')).toHaveLength(1);
+  });
+
+  test('GET /notes 查询指定位置的笔记', async () => {
+    // 先创建一条笔记
+    const loc = 'epubcfi(1!/2/1:5,/2/1:15)';
+    const postReq = createMockReq('/api/plugins/epub-reader/notes', {
+      rid: 'epub-001', content: '查询测试', quote: '引用', location: loc,
+    });
+    postReq.method = 'POST';
+    const postRes = createMockRes();
+    await handlers.createNote(postReq, postRes);
+
+    // 查询
+    const req = createMockReq('/api/plugins/epub-reader/notes?rid=epub-001&location=' + encodeURIComponent(loc));
+    req.method = 'GET';
+    const res = createMockRes();
+    await handlers.getNote(req, res);
+    expect(res._result.data.note).toBeTruthy();
+    expect(res._result.data.note.metadata.content).toBe('查询测试');
+  });
+
+  test('GET /notes 查询不存在的位置返回 null', async () => {
+    const req = createMockReq('/api/plugins/epub-reader/notes?rid=epub-001&location=nonexistent');
+    req.method = 'GET';
+    const res = createMockRes();
+    await handlers.getNote(req, res);
+    expect(res._result.data.note).toBeNull();
   });
 
   test('rid 不存在返回 400', async () => {

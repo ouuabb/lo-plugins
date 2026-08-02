@@ -320,7 +320,8 @@ function createHandlers(ctx) {
       }
     },
 
-    // ⑫ 创建笔记 Resource + source-of 关系
+    // ⑫ 创建或更新笔记 Resource + source-of 关系
+    // 同一 EPUB + 同一 location 只有一条笔记：已存在则更新 content/quote，不存在才新建
     async createNote(req, res) {
       try {
         const { rid, content, quote, location } = req.body || {};
@@ -330,30 +331,86 @@ function createHandlers(ctx) {
         // 确认 EPUB 资源存在
         const epubResource = await getEpubResource(ctx, rid);
 
-        // 创建 note Resource（§5.2 阅读笔记 → lo 知识体系）
-        const noteResource = await ctx.resources.create({
-          type: 'note',
-          title: `笔记: ${epubResource.title || rid}`,
-          content: content,
-          metadata: {
-            sourceResource: rid,
-            location: location || '',
-            quote: quote || '',
-          },
-        });
+        const bookTitle = (epubResource.metadata && epubResource.metadata.title) || epubResource.name || rid;
+        const loc = location || '';
 
-        // 建立 source-of 关系（§9 数据关系）
-        const noteRid = noteResource.rid || noteResource.id;
-        if (noteRid && ctx.relations) {
-          await ctx.relations.create({
-            from_rid: rid,
-            to_rid: noteRid,
-            type: 'source-of',
-            metadata: { location: location || '', quote: quote || '' },
+        // 查询该 EPUB 的所有 source-of 关系，按 location 匹配已有笔记
+        const repo = ctx.getRepository();
+        const relations = await repo.relationService.getByFromRidAndType(rid, 'source-of');
+        const existing = relations.find(r =>
+          r.metadata && r.metadata.location === loc
+        );
+
+        if (existing) {
+          // 同位置已有笔记 → 更新 content 和 quote
+          const noteRid = existing.to_rid;
+          const noteResource = await ctx.resources.getByRid(noteRid);
+          if (!noteResource) {
+            return res.status(404).json({ error: '笔记资源不存在（可能已删除）' });
+          }
+          const updatedMeta = {
+            ...(noteResource.metadata || {}),
+            content: content,
+            quote: quote || (noteResource.metadata && noteResource.metadata.quote) || '',
+          };
+          await ctx.resources.update(noteRid, { metadata: updatedMeta });
+          // 同步更新 relation 的 quote
+          if (ctx.relations) {
+            await repo.relationService.update(existing.id, {
+              metadata: { location: loc, quote: quote || '' },
+            });
+          }
+          const updated = await ctx.resources.getByRid(noteRid);
+          res.json({ ok: true, note: updated, updated: true });
+        } else {
+          // 新笔记
+          const ts = new Date().toISOString().replace('T', ' ').slice(0, 16);
+          const noteResource = await ctx.resources.create({
+            type: 'note',
+            name: `笔记: ${bookTitle} (${ts})`,
+            metadata: {
+              title: bookTitle,
+              sourceResource: rid,
+              location: loc,
+              quote: quote || '',
+              content: content,
+            },
           });
-        }
 
-        res.json({ ok: true, note: noteResource });
+          const noteRid = noteResource.rid || noteResource.id;
+          if (noteRid && ctx.relations) {
+            await ctx.relations.create({
+              from_rid: rid,
+              to_rid: noteRid,
+              type: 'source-of',
+              metadata: { location: loc, quote: quote || '' },
+            });
+          }
+          res.json({ ok: true, note: noteResource, created: true });
+        }
+      } catch (e) {
+        res.status(400).json({ error: e.message });
+      }
+    },
+
+    // ⑬ 查询指定位置的笔记（前端选中同一段文字时回显已有笔记）
+    async getNote(req, res) {
+      try {
+        const q = parseQuery(req);
+        const { rid, location } = q;
+        if (!rid || !location) {
+          return res.status(400).json({ error: '缺少 rid 或 location' });
+        }
+        const repo = ctx.getRepository();
+        const relations = await repo.relationService.getByFromRidAndType(rid, 'source-of');
+        const existing = relations.find(r =>
+          r.metadata && r.metadata.location === location
+        );
+        if (!existing) {
+          return res.json({ note: null });
+        }
+        const note = await ctx.resources.getByRid(existing.to_rid);
+        res.json({ note });
       } catch (e) {
         res.status(400).json({ error: e.message });
       }

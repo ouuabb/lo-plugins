@@ -18,7 +18,8 @@
  *   GET    /api/plugins/epub-reader/bookmarks   — 书签列表
  *   POST   /api/plugins/epub-reader/bookmarks   — 添加书签
  *   DELETE /api/plugins/epub-reader/bookmarks   — 删除书签
- *   POST   /api/plugins/epub-reader/notes       — 创建笔记 Resource + source-of 关系
+ *   POST   /api/plugins/epub-reader/notes       — 创建/更新笔记（同位置自动更新）
+ *   GET    /api/plugins/epub-reader/notes       — 查询指定位置的笔记
  *
  * 不继承 ResourceProvider：EPUB 插件不需要 discover/watch（文件由用户主动 import）。
  */
@@ -94,7 +95,8 @@ class EpubReaderPlugin extends Plugin {
       { key: 'epub-reader:get-bm',     method: 'GET',    path: basePath + '/bookmarks',  handler: handlers.getBookmarks,     desc: '书签列表' },
       { key: 'epub-reader:add-bm',     method: 'POST',   path: basePath + '/bookmarks',  handler: handlers.addBookmark,      desc: '添加书签' },
       { key: 'epub-reader:del-bm',     method: 'DELETE', path: basePath + '/bookmarks',  handler: handlers.removeBookmark,   desc: '删除书签' },
-      { key: 'epub-reader:note',       method: 'POST',   path: basePath + '/notes',      handler: handlers.createNote,       desc: '创建笔记 Resource + source-of 关系' },
+      { key: 'epub-reader:note',       method: 'POST',   path: basePath + '/notes',      handler: handlers.createNote,       desc: '创建/更新笔记（同位置自动更新）' },
+      { key: 'epub-reader:get-note',   method: 'GET',    path: basePath + '/notes',      handler: handlers.getNote,          desc: '查询指定位置的笔记' },
     ];
     for (const ep of endpoints) {
       extRegistry.register(manifest.id, 'commands', ep.key, {

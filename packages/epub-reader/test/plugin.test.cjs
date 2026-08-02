@@ -94,13 +94,13 @@ describe('EpubReaderPlugin register', () => {
     expect(typeof importerReg.handler.import).toBe('function');
   });
 
-  test('注册 8 个 CLI commands + 12 个 HTTP 端点', () => {
+  test('注册 9 个 CLI commands + 13 个 HTTP 端点', () => {
     const plugin = new EpubReaderPlugin();
     const ctx = createMockContext();
     plugin.register(ctx);
 
     const cmdRegs = ctx._registry.registered.filter(r => r.extType === 'commands');
-    expect(cmdRegs).toHaveLength(21); // 9 CLI + 12 HTTP
+    expect(cmdRegs).toHaveLength(22); // 9 CLI + 13 HTTP
 
     // CLI 命令（有 run 函数）
     const cliCmds = cmdRegs.filter(r => typeof r.handler.run === 'function');
@@ -113,7 +113,7 @@ describe('EpubReaderPlugin register', () => {
 
     // HTTP 端点（有 method/path/handler）
     const httpEps = cmdRegs.filter(r => r.handler.method && r.handler.path && typeof r.handler.handler === 'function');
-    expect(httpEps).toHaveLength(12);
+    expect(httpEps).toHaveLength(13);
   });
 
   test('CLI command handler 有 run 函数和 description', () => {
