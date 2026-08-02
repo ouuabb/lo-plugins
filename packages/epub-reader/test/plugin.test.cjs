@@ -266,6 +266,15 @@ describe('EpubReaderPlugin manifest', () => {
     expect(rt.metadataSchema.author).toBeDefined();
   });
 
+  test('contributes.resourceTypes 注册 note 类型及笔记字段', () => {
+    const rt = manifest.contributes.resourceTypes.find(r => r.type === 'note');
+    expect(rt).toBeDefined();
+    expect(rt.metadataSchema.sourceResource).toBeDefined();
+    expect(rt.metadataSchema.location).toBeDefined();
+    expect(rt.metadataSchema.quote).toBeDefined();
+    expect(rt.metadataSchema.content).toBeDefined();
+  });
+
   test('contributes.relationTypes 注册 source-of', () => {
     const rel = manifest.contributes.relationTypes[0];
     expect(rel.type).toBe('source-of');
