@@ -50,6 +50,16 @@ module.exports = {
           chapterTitles:  { type: 'array' },   // 章节标题列表
         },
       },
+      {
+        // 阅读笔记元数据字段（create/update 时 Core 按类型校验）
+        type: 'note',
+        metadataSchema: {
+          sourceResource: { type: 'string' },  // 来源 EPUB Resource rid
+          location:       { type: 'string' },  // 原文位置（CFI）
+          quote:          { type: 'string' },  // 引用原文
+          content:        { type: 'string' },  // 笔记内容
+        },
+      },
     ],
 
     // 注册来源关系类型：EPUB Resource → 笔记 Resource
