@@ -8,9 +8,9 @@ lo 官方插件源码仓库（monorepo）。
 lo-plugins/
   packages/
     chrome-translate/    # Chrome 划词翻译插件
-  shared/
-    utils/               # 共享工具
-    index.cjs            # 共享模块入口
+    epub-reader/         # EPUB 阅读插件（Web 阅读器 + CLI 命令）
+    epub-library/        # EPUB 书库展示插件（3D 书架）
+  docs/                  # VitePress 文档
 ```
 
 ## 开发
@@ -36,3 +36,5 @@ npm run build:packages -- --plugin <id>   # 只打包指定插件
 | 插件 | 说明 |
 |------|------|
 | chrome-translate | Chrome 划词翻译，同步翻译记录到 lo 仓库 |
+| epub-reader | EPUB 阅读、标注、笔记（Web 阅读器 + CLI 命令） |
+| epub-library | EPUB 书库展示，读取 epub Resource 渲染 3D 书架 |
