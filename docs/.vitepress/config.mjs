@@ -11,7 +11,6 @@ export default defineConfig({
     nav: [
       { text: '指南', link: '/guide/getting-started' },
       { text: '插件', link: '/plugins/chrome-translate' },
-      { text: '共享工具', link: '/shared/overview' },
     ],
 
     sidebar: {
@@ -32,14 +31,6 @@ export default defineConfig({
             { text: 'Chrome 划词翻译', link: '/plugins/chrome-translate' },
             { text: 'EPUB 阅读', link: '/plugins/epub-reader' },
             { text: 'EPUB 书库', link: '/plugins/epub-library' },
-          ],
-        },
-      ],
-      '/shared/': [
-        {
-          text: '共享工具',
-          items: [
-            { text: '概览', link: '/shared/overview' },
           ],
         },
       ],

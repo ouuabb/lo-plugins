@@ -118,16 +118,6 @@ contributes: {
 }
 ```
 
-## 共享工具
-
-跨插件复用的工具放在 `shared/` 目录：
-
-```javascript
-const { dedup, generateRecordId } = require('@lo-plugins/shared');
-```
-
-详见 [共享工具概览](../shared/overview.md)。
-
 ## 测试规范
 
 - 测试文件放在 `test/` 目录，命名 `*.test.cjs`
@@ -156,12 +146,11 @@ function createMockContext(existingResources = []) {
 提交信息格式：`<type>(<scope>): <中文描述>`
 
 - type: `feat` | `fix` | `docs` | `refactor` | `test` | `chore` | `ci` | `build`
-- scope: 可选，如 `plugin`、`shared`、`project`
+- scope: 可选，如 `plugin`、`project`
 - subject: 必须包含中文
 
 ```bash
 feat(plugin): 实现划词翻译双通道同步
-fix(shared): 修复去重逻辑边界情况
 docs: 更新插件开发指南
 ```
 
