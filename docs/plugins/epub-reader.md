@@ -278,7 +278,7 @@ lo ext epub:bookmarks <rid>
 | importers | `epub` | `lo import *.epub` 时解析并创建 epub Resource |
 | commands | `epub:open` 等 8 个 | 浏览器打开阅读器、标注、笔记命令（CLI） |
 | commands | `epub-reader:*` 12 个 | Web 阅读器 HTTP 端点（lo serve 挂载） |
-| resourceTypes | `epub` | 注册 epub 资源类型及 metadata schema |
+| resourceTypes | `epub`、`note` | 注册 epub 资源类型与 note 笔记类型及 metadata schema（`epub-reader/src/manifest.cjs`） |
 | relationTypes | `source-of` | EPUB 与笔记的来源关系 |
 
 ### importers 扩展点
