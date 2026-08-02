@@ -7,8 +7,19 @@
     "author": "lo Project",
     "main": "src/index.cjs",
     "downloadUrl": "chrome-translate-0.1.0.tar.gz",
-    "checksum": "0acd2080484b676d0ba7d8fd713a1052b33706f86e5fa7e37c6ffd7e764b7554",
-    "size": 11845
+    "checksum": "511c54802dd26b684953bbc2854d30da1fce2df1a637c780e32650535c1edefe",
+    "size": 11846
+  },
+  {
+    "id": "epub-library",
+    "name": "EPUB 书库",
+    "version": "0.1.0",
+    "description": "3D 书库展示插件，读取 lo 仓库中的 EPUB 资源并渲染为实体书架",
+    "author": "lo Project",
+    "main": "src/index.cjs",
+    "downloadUrl": "epub-library-0.1.0.tar.gz",
+    "checksum": "fd19fc7523853a6bb4f91debec3b951d723fac52a5f82cd8cbdef130898a6519",
+    "size": 5956
   },
   {
     "id": "epub-reader",
@@ -18,7 +29,7 @@
     "author": "lo Project",
     "main": "src/index.cjs",
     "downloadUrl": "epub-reader-0.1.0.tar.gz",
-    "checksum": "73cadbf6077701aa8613405a9ea3944e5279e74f40b012f964b290cfba7a260d",
-    "size": 25344
+    "checksum": "3d6a028d3d6cfb3140c0dee1756c80700fd857d7f66985923528cd56defb3660",
+    "size": 25343
   }
 ]
