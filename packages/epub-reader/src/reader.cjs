@@ -25,7 +25,7 @@
 const path = require('path');
 const fs = require('fs');
 const url = require('url');
-const { parseEpub, makeLocation, parseLocation } = require('./epubParser.cjs');
+const { parseEpub } = require('./epubParser.cjs');
 const { createStore } = require('./store.cjs');
 
 /** HTML 页面内容缓存（读取一次后常驻内存） */

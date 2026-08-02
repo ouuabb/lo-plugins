@@ -71,23 +71,20 @@ http://127.0.0.1:8765/api/plugins/epub-reader/reader?rid=2024xxxx
 
 > `rid` 替换为 `lo import` 返回的资源 ID。
 
-### 4. 使用终端阅读（CLI）
+### 4. 使用 CLI 命令
 
 ```bash
-# 终端阅读（翻页：n 下一章 / p 上一章 / 数字跳转 / q 退出并保存进度）
-lo ext epub:read 2024xxxx
-
 # 查看阅读信息
 lo ext epub:info 2024xxxx
 
 # 添加高亮
-lo ext epub:highlight 2024xxxx "chapter:0:offset:123" "高亮文本"
+lo ext epub:highlight 2024xxxx "epubcfi(0!/4/2:12,/4/2:24)" "高亮文本"
 
 # 添加书签
-lo ext epub:bookmark 2024xxxx "chapter:0:offset:123" "书签标题"
+lo ext epub:bookmark 2024xxxx "epubcfi(0!/2:0,/2:0)" "书签标题"
 
 # 创建笔记（自动创建 note Resource + source-of 关系）
-lo ext epub:note 2024xxxx "我的阅读笔记" "chapter:0:offset:123" "引用原文"
+lo ext epub:note 2024xxxx "我的阅读笔记" "epubcfi(0!/4/2:12,/4/2:24)" "引用原文"
 ```
 
 ### 5. 插件配置
@@ -123,9 +120,9 @@ lo import book.epub       ← importers 扩展点
   ↓
 epub Resource（type=epub）
   ↓
-lo ext epub:read <rid>    ← commands 扩展点
+lo ext epub:open <rid>      ← commands 扩展点（在浏览器中打开 Web 阅读器）
   ↓
-解析章节 → 终端阅读 → 保存阅读状态
+解析章节 → Web 阅读器 → 保存阅读状态
   ↓
 标注 / 笔记
   ↓
@@ -175,11 +172,7 @@ EPUB 文件本身作为内容源：
 
 EPUB 内容使用稳定的位置标识，不依赖页码或屏幕位置（不同环境下排版会变化）。
 
-插件存在两套定位格式：
-
-### 1. CFI 格式（Web 阅读器使用）
-
-Web 阅读器（`reader.html`）采用 EPUB CFI（Canonical Fragment Identifier）作为定位标识，基于 DOM 节点路径 + 文本偏移，可精确恢复文本选区：
+插件统一采用 EPUB CFI（Canonical Fragment Identifier）作为定位标识，基于 DOM 节点路径 + 文本偏移，可精确恢复文本选区：
 
 ```
 epubcfi(<spineIndex>!<startPath>:<startOffset>,<endPath>:<endOffset>)
@@ -198,28 +191,6 @@ epubcfi(2!/4/2:12,/4/2:24)        → 第 3 章中某段落的第 12-24 字符
 
 > Web 阅读器保存阅读状态、高亮、书签、笔记时均使用 CFI 格式。
 
-### 2. 章节字符偏移格式（CLI 命令使用）
-
-终端命令（`epub:read` / `epub:highlight` / `epub:bookmark` / `epub:note`）使用更简单的章节级标识，由 `epubParser.makeLocation()` 生成：
-
-```
-chapter:<spineIndex>                     — 章节级定位
-chapter:<spineIndex>:offset:<charOffset> — 章节内字符偏移
-```
-
-示例：
-
-```
-chapter:0                  → 第 1 章
-chapter:2:offset:1234      → 第 3 章第 1234 字符处
-```
-
-### 兼容性
-
-- Web 阅读器的 `parseCFISpineIndex` 同时解析 CFI 和旧格式 `chapter:X:offset:Y`，可恢复由 CLI 保存的阅读位置
-- CLI 的 `parseLocation` 仅解析 `chapter:X:offset:Y`，无法从 CFI 字符串提取正确的章节号
-- 如需跨 Web/CLI 共享阅读位置，建议以 Web 阅读器为主
-
 用于：
 
 - 恢复阅读位置
@@ -230,20 +201,13 @@ chapter:2:offset:1234      → 第 3 章第 1234 字符处
 
 通过 `commands` 扩展点注册，用户通过 `lo ext epub:<name>` 调用。
 
-### epub:read — 终端阅读
+### epub:open — 浏览器打开阅读器
 
 ```bash
-lo ext epub:read <rid>
+lo ext epub:open <rid>
 ```
 
-交互式阅读 EPUB：
-
-- 显示章节内容（纯文本，去除 HTML 标签）
-- 翻页操作：`n` 下一章 / `p` 上一章 / 数字跳转 / `q` 退出
-- 自动保存阅读进度（章节位置 + 进度百分比）
-- 非 TTY 环境下只显示当前章节并保存进度
-
-> 进度恢复依赖 `parseLocation` 解析 `state.location`，仅识别 `chapter:X:offset:Y` 格式。若该书最近一次阅读发生在 Web 阅读器（保存为 CFI 格式），CLI 无法解析章节号，将从第 1 章开始。
+在系统默认浏览器中打开 Web 阅读器页面（`http://127.0.0.1:8765/api/plugins/epub-reader/reader?rid=<rid>`），需先启动 `lo serve`。
 
 ### epub:info — 元信息
 
@@ -284,7 +248,7 @@ lo ext epub:notes <rid>
 
 ```bash
 lo ext epub:highlight <rid> <location> <text>
-# location 格式: chapter:0 或 chapter:0:offset:1234
+# location 格式: epubcfi(<spineIndex>!<start>:<offset>,<end>:<offset>)
 ```
 
 ### epub:highlights — 列出高亮
@@ -312,7 +276,7 @@ lo ext epub:bookmarks <rid>
 | 扩展点 | key | 说明 |
 |-------|-----|------|
 | importers | `epub` | `lo import *.epub` 时解析并创建 epub Resource |
-| commands | `epub:read` 等 8 个 | 终端阅读、标注、笔记命令（CLI） |
+| commands | `epub:open` 等 8 个 | 浏览器打开阅读器、标注、笔记命令（CLI） |
 | commands | `epub-reader:*` 12 个 | Web 阅读器 HTTP 端点（lo serve 挂载） |
 | resourceTypes | `epub` | 注册 epub 资源类型及 metadata schema |
 | relationTypes | `source-of` | EPUB 与笔记的来源关系 |
@@ -387,7 +351,7 @@ epub-reader/
 ├── src/
 │   ├── epubParser.cjs   — 内容处理模块：解析 EPUB（container.xml → OPF → NCX/Nav → XHTML 文本）
 │   ├── store.cjs        — 阅读状态/标注模块：插件独立 SQLite（阅读状态、设置、高亮、书签 CRUD）
-│   ├── commands.cjs     — 阅读模块 + 笔记处理模块：CLI 命令实现
+│   ├── commands.cjs     — 笔记处理模块 + CLI 命令实现（open/info/note/highlight/bookmark）
 │   ├── reader.cjs       — Web 阅读器后端：12 个 HTTP handler（API + HTML 页面）
 │   ├── reader.html      — Web 阅读器前端：单页应用（章节导航/文本选择/高亮/书签/笔记）
 │   ├── plugin.cjs       — 插件主类：注册扩展点
@@ -492,17 +456,18 @@ lo import book.epub
 # 2. 查看元信息
 lo ext epub:info res-xxxxx
 
-# 3. 终端阅读
-lo ext epub:read res-xxxxx
+# 3. 浏览器阅读（需先启动 lo serve，或在 CLI 中用下面命令自动打开）
+lo serve
+lo ext epub:open res-xxxxx
 
 # 4. 添加高亮
-lo ext epub:highlight res-xxxxx chapter:0:offset:1234 "重要段落"
+lo ext epub:highlight res-xxxxx "epubcfi(0!/4/2:12,/4/2:24)" "重要段落"
 
 # 5. 添加书签
-lo ext epub:bookmark res-xxxxx chapter:1 "第二章关键点"
+lo ext epub:bookmark res-xxxxx "epubcfi(1!/2:0,/2:0)" "第二章关键点"
 
 # 6. 创建笔记（建立 source-of 关系）
-lo ext epub:note res-xxxxx --quote "原文引用" --location chapter:0:offset:1234
+lo ext epub:note res-xxxxx --quote "原文引用" --location "epubcfi(0!/4/2:12,/4/2:24)"
 
 # 7. 查看关联笔记
 lo ext epub:notes res-xxxxx

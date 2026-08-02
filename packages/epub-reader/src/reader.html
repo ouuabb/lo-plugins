@@ -467,10 +467,7 @@
 
   function parseCFISpineIndex(loc) {
     const m = String(loc || '').match(/^epubcfi\((\d+)!/);
-    if (m) return parseInt(m[1], 10);
-    // 兼容旧格式 chapter:X:offset:Y
-    const old = String(loc || '').match(/^chapter:(\d+):offset:/);
-    return old ? parseInt(old[1], 10) : -1;
+    return m ? parseInt(m[1], 10) : -1;
   }
 
   function makeChapterCFI(spineIndex) {

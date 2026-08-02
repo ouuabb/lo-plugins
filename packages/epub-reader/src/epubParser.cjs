@@ -8,9 +8,9 @@
  *   4. NCX (EPUB2) 或 Nav (EPUB3) → 目录结构
  *   5. 按 spine 顺序提取 XHTML → 纯文本
  *
- * content_location 设计（2.md §6 原文定位）：
- *   "chapter:<spineIndex>" — 章节级定位
- *   "chapter:<spineIndex>:offset:<charOffset>" — 章节内字符偏移
+ * 定位（原文定位）：
+ *   使用 EPUB CFI（Canonical Fragment Identifier）作为定位标识，
+ *   格式：epubcfi(<spineIndex>!<startPath>:<startOffset>,<endPath>:<endOffset>)
  *   不依赖页码/屏幕位置，排版变化不影响定位
  */
 
@@ -324,33 +324,6 @@ function normalizePath(p) {
   return path.posix.normalize(p).replace(/^\.\//, '');
 }
 
-/**
- * 生成稳定的章节定位标识（2.md §6 原文定位）
- * @param {number} spineIndex — spine 中的序号
- * @param {number} [charOffset] — 章节内字符偏移
- * @returns {string} 如 "chapter:0" 或 "chapter:0:offset:1234"
- */
-function makeLocation(spineIndex, charOffset) {
-  if (charOffset !== undefined) {
-    return `chapter:${spineIndex}:offset:${charOffset}`;
-  }
-  return `chapter:${spineIndex}`;
-}
-
-/**
- * 解析定位标识
- * @returns {{spineIndex: number, charOffset?: number}}
- */
-function parseLocation(location) {
-  const parts = location.split(':');
-  const spineIndex = parseInt(parts[1], 10);
-  const result = { spineIndex };
-  if (parts[2] === 'offset' && parts[3] !== undefined) {
-    result.charOffset = parseInt(parts[3], 10);
-  }
-  return result;
-}
-
 module.exports = {
   parseEpub,
   findOpfPath,
@@ -365,6 +338,4 @@ module.exports = {
   decodeHtmlEntities,
   extractAttr,
   normalizePath,
-  makeLocation,
-  parseLocation,
 };

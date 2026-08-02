@@ -156,7 +156,7 @@ function createStore(dataDir) {
     /**
      * 保存阅读状态（UPSERT）
      * @param {string} resourceId — EPUB Resource rid
-     * @param {string} location — 章节定位（如 "chapter:0:offset:1234"）
+     * @param {string} location — 章节定位（CFI 格式，如 "epubcfi(0!/2:0,/2:0)"）
      * @param {number} progress — 阅读进度 0-1
      */
     async saveReadingState(resourceId, location, progress) {

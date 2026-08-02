@@ -5,7 +5,7 @@
  * 命令 handler 签名：async run(args, ctx)，ctx = { repo, logger, args }
  *
  * 命令列表：
- *   epub:read <rid>                 — 终端阅读（翻页、保存进度）
+ *   epub:open <rid>                 — 在浏览器中打开 Web 阅读器
  *   epub:info <rid>                 — 显示 EPUB 元信息与阅读状态
  *   epub:note <rid> [--quote <text>] — 创建笔记 Resource + 来源关系
  *   epub:notes <rid>                — 列出关联笔记
@@ -17,7 +17,7 @@
 
 const path = require('path');
 const readline = require('readline');
-const { parseEpub, makeLocation, parseLocation } = require('./epubParser.cjs');
+const { parseEpub } = require('./epubParser.cjs');
 const { createStore } = require('./store.cjs');
 
 /**
@@ -37,125 +37,6 @@ function getEpubFilePath(repo, resource) {
   const filePath = resource.path || resource.filePath || '';
   if (!filePath) throw new Error('资源缺少文件路径');
   return path.isAbsolute(filePath) ? filePath : path.join(repo.repoPath, filePath);
-}
-
-// ── epub:read — 终端阅读 ──
-
-async function read(args, ctx) {
-  const { repo, logger } = ctx;
-  const rid = args[0];
-  if (!rid) {
-    logger.log('用法: lo ext epub:read <rid>');
-    return;
-  }
-
-  const resource = await repo.getResource(rid);
-  const filePath = getEpubFilePath(repo, resource);
-
-  logger.log(`正在解析 EPUB: ${path.basename(filePath)}`);
-  const book = parseEpub(filePath);
-  logger.log(`《${book.title}》 — ${book.author || '未知作者'} (${book.chapters.length} 章)\n`);
-
-  const store = createStore(getDataDir(repo));
-  const state = await store.getReadingState(rid);
-  let currentChapter = state ? parseLocation(state.location).spineIndex : 0;
-  if (currentChapter >= book.chapters.length) currentChapter = 0;
-
-  // 交互式阅读
-  if (!process.stdin.isTTY) {
-    // 非 TTY 环境：只显示当前章节
-    showChapter(logger, book, currentChapter);
-    const progress = (currentChapter + 1) / book.chapters.length;
-    await store.saveReadingState(rid, makeLocation(currentChapter), progress);
-    logger.log(`\n进度: ${(progress * 100).toFixed(1)}% (章节 ${currentChapter + 1}/${book.chapters.length})`);
-    return;
-  }
-
-  await interactiveRead(repo, logger, book, rid, currentChapter, store);
-}
-
-function showChapter(logger, book, index) {
-  const chapter = book.chapters[index];
-  if (!chapter) {
-    logger.log('章节不存在');
-    return;
-  }
-  logger.log(`\n${'═'.repeat(60)}`);
-  logger.log(`  ${chapter.title}`);
-  logger.log(`${'═'.repeat(60)}\n`);
-  logger.log(chapter.content);
-}
-
-async function interactiveRead(repo, logger, book, rid, startChapter, store) {
-  let current = startChapter;
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  return new Promise((resolve) => {
-    const showHelp = () => {
-      logger.log('\n操作: n=下一章  p=上一章  q=退出  ?=帮助');
-    };
-
-    const render = () => {
-      showChapter(logger, book, current);
-      const progress = (current + 1) / book.chapters.length;
-      logger.log(`\n[进度: ${(progress * 100).toFixed(1)}% | 章节 ${current + 1}/${book.chapters.length}]`);
-      showHelp();
-      rl.prompt();
-    };
-
-    render();
-
-    rl.on('line', (input) => {
-      const cmd = input.trim().toLowerCase();
-      switch (cmd) {
-        case 'n':
-          if (current < book.chapters.length - 1) {
-            current++;
-            render();
-          } else {
-            logger.log('已是最后一章');
-            rl.prompt();
-          }
-          break;
-        case 'p':
-          if (current > 0) {
-            current--;
-            render();
-          } else {
-            logger.log('已是第一章');
-            rl.prompt();
-          }
-          break;
-        case 'q':
-          const progress = (current + 1) / book.chapters.length;
-          store.saveReadingState(rid, makeLocation(current), progress).then(() => {
-            logger.log(`\n阅读进度已保存: 章节 ${current + 1}/${book.chapters.length} (${(progress * 100).toFixed(1)}%)`);
-            rl.close();
-            resolve();
-          });
-          break;
-        case '?':
-          showHelp();
-          rl.prompt();
-          break;
-        default:
-          // 数字 → 跳转到指定章节
-          const num = parseInt(cmd, 10);
-          if (!isNaN(num) && num >= 1 && num <= book.chapters.length) {
-            current = num - 1;
-            render();
-          } else {
-            logger.log('未知命令。n=下一章 p=上一章 q=退出 ?=帮助');
-            rl.prompt();
-          }
-      }
-    });
-
-    rl.on('close', () => {
-      const progress = (current + 1) / book.chapters.length;
-      store.saveReadingState(rid, makeLocation(current), progress).finally(() => resolve());
-    });
-  });
 }
 
 // ── epub:info — 显示元信息 ──
@@ -295,7 +176,7 @@ async function notes(args, ctx) {
 
   logger.log(`\n关联笔记 (${noteLinks.length} 条):\n`);
   for (const link of noteLinks) {
-    const noteRid = link.toRid || link.to_rid || link.target;
+    const noteRid = link.to;
     const note = await repo.getResource(noteRid);
     const meta = note && note.metadata ? note.metadata : {};
     logger.log(`  ${noteRid}  ${note ? (note.title || note.name || '') : '(已删除)'}`);
@@ -316,7 +197,7 @@ async function highlight(args, ctx) {
 
   if (!rid || !location || !text) {
     logger.log('用法: lo ext epub:highlight <rid> <location> <text>');
-    logger.log('  location 格式: chapter:0 或 chapter:0:offset:1234');
+    logger.log('  location 格式: epubcfi(<spineIndex>!<start>:<offset>,<end>:<offset>)');
     return;
   }
 
@@ -457,7 +338,6 @@ async function open(args, ctx) {
 // ── 命令注册表 ──
 
 const commands = {
-  'epub:read':      { run: read,       description: '终端阅读 EPUB（翻页、保存进度）' },
   'epub:open':      { run: open,       description: '在浏览器中打开 Web 阅读器' },
   'epub:info':      { run: info,       description: '显示 EPUB 元信息与阅读状态' },
   'epub:note':      { run: note,       description: '创建阅读笔记 Resource 并关联到 EPUB' },

@@ -25,8 +25,6 @@ const {
   decodeHtmlEntities,
   extractAttr,
   normalizePath,
-  makeLocation,
-  parseLocation,
 } = require('../src/epubParser.cjs');
 
 // ── 测试 EPUB 文件创建 ──
@@ -252,24 +250,6 @@ describe('epubParser 纯函数', () => {
 
     test('处理 ../ 前缀', () => {
       expect(normalizePath('OEBPS/../chapter1.xhtml')).toBe('chapter1.xhtml');
-    });
-  });
-
-  describe('makeLocation / parseLocation', () => {
-    test('章节级定位', () => {
-      const loc = makeLocation(0);
-      expect(loc).toBe('chapter:0');
-      const parsed = parseLocation(loc);
-      expect(parsed.spineIndex).toBe(0);
-      expect(parsed.charOffset).toBeUndefined();
-    });
-
-    test('章节+偏移定位', () => {
-      const loc = makeLocation(2, 1234);
-      expect(loc).toBe('chapter:2:offset:1234');
-      const parsed = parseLocation(loc);
-      expect(parsed.spineIndex).toBe(2);
-      expect(parsed.charOffset).toBe(1234);
     });
   });
 });
