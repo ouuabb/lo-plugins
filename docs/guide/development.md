@@ -129,7 +129,7 @@ contributes: {
 function createMockContext(existingResources = []) {
   return {
     config: () => ({}),
-    logger: { log: () => {}, error: () => {}, debug: () => {}, warn: () => {} },
+    logger: { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} },
     extensions: { register: () => {} },
     resources: {
       async create(candidate) { /* ... */ },
