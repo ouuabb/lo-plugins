@@ -10,6 +10,7 @@
 const EpubLibraryPlugin = require('../src/plugin.cjs');
 const manifest = require('../src/manifest.cjs');
 const { createHandlers } = require('../src/library.cjs');
+const fs = require('fs');
 
 // ── Mock ──
 
@@ -43,10 +44,12 @@ function createMockContext(overrides = {}) {
 
 function createMockRes() {
   const res = {
+    _statusCode: 200,
     _headers: {},
     _body: null,
     _ended: false,
     setHeader(name, value) { this._headers[name] = value; },
+    status(code) { this._statusCode = code; return this; },
     json(data) { this._body = data; },
     end(data) { this._body = data; this._ended = true; },
   };
@@ -220,5 +223,43 @@ describe('listBooks handler', () => {
     expect(book.author).toBe('');
     expect(book.publisher).toBe('');
     expect(book.spineCount).toBe(0);
+  });
+
+  test('listBooks 查询失败时返回 500', async () => {
+    const ctx = createMockContext({
+      resources: {
+        async list() { throw new Error('数据库连接失败'); },
+      },
+    });
+
+    const handlers = createHandlers(ctx);
+    const res = createMockRes();
+
+    await handlers.listBooks({}, res);
+
+    expect(res._statusCode).toBe(500);
+    expect(res._body.error).toBe('数据库连接失败');
+  });
+});
+
+describe('serveLibraryPage 错误路径', () => {
+  test('读取 HTML 失败时返回 500', async () => {
+    // htmlCache 是模块级缓存，先 resetModules 让 library.cjs 以空缓存重新加载
+    jest.resetModules();
+    const freshLibrary = require('../src/library.cjs');
+    const freshHandlers = freshLibrary.createHandlers(createMockContext());
+    const res = createMockRes();
+
+    const spy = jest.spyOn(fs, 'readFileSync').mockImplementation(() => {
+      throw new Error('HTML 文件不存在');
+    });
+    try {
+      await freshHandlers.serveLibraryPage({}, res);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(res._statusCode).toBe(500);
+    expect(res._body.error).toBe('HTML 文件不存在');
   });
 });

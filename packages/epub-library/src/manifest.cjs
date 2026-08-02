@@ -10,7 +10,7 @@ module.exports = {
   version: '0.1.0',
   description: '3D 书库展示插件，读取 lo 仓库中的 EPUB 资源并渲染为实体书架',
   author: 'lo Project',
-  role: 'display',
+  role: 'general',
 
   loVersion: '>=0.1.0',
 

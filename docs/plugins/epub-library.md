@@ -98,13 +98,12 @@ epub-library/
 │   └── index.cjs      — 入口
 ├── test/
 │   └── library.test.cjs — handler 单元测试
-├── plugin.json        — 打包清单
-└── package.json
+└── plugin.json        — 打包清单
 ```
 
 ## 设计原则
 
 - **零耦合**：只读 `ctx.resources.list`，不注册 `resourceTypes` / `importers` / `resourceProviders`
 - **纯展示**：不创建/修改/删除任何 Resource
-- **无依赖**：不依赖 `epub-reader` 插件，直接读取 lo 数据库中已有的 epub Resource
+- **功能依赖**：代码零依赖 `epub-reader`（不 import 其任何模块），但书库内容来自 epub 类型 Resource，需要 EPUB 导入器（通常即 `epub-reader`）先生成数据，建议与 `epub-reader` 一同安装
 - **无副作用**：不写入任何文件、数据库、配置

@@ -29,9 +29,13 @@ function createHandlers(ctx) {
      * 书库 HTML 页面
      */
     async serveLibraryPage(req, res) {
-      const html = getLibraryHtml();
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end(html);
+      try {
+        const html = getLibraryHtml();
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(html);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
     },
 
     /**
@@ -39,19 +43,23 @@ function createHandlers(ctx) {
      * 返回前端渲染所需的书脊数据
      */
     async listBooks(req, res) {
-      const all = await ctx.resources.list({ type: 'epub' });
-      const books = all.map(r => ({
-        rid: r.rid,
-        name: r.name,
-        title: (r.metadata && r.metadata.title) || r.name,
-        author: (r.metadata && r.metadata.author) || '',
-        publisher: (r.metadata && r.metadata.publisher) || '',
-        language: (r.metadata && r.metadata.language) || '',
-        spineCount: (r.metadata && r.metadata.spineCount) || 0,
-        created: r.created,
-        updated: r.updated,
-      }));
-      res.json({ books });
+      try {
+        const all = await ctx.resources.list({ type: 'epub' });
+        const books = all.map(r => ({
+          rid: r.rid,
+          name: r.name,
+          title: (r.metadata && r.metadata.title) || r.name,
+          author: (r.metadata && r.metadata.author) || '',
+          publisher: (r.metadata && r.metadata.publisher) || '',
+          language: (r.metadata && r.metadata.language) || '',
+          spineCount: (r.metadata && r.metadata.spineCount) || 0,
+          created: r.created,
+          updated: r.updated,
+        }));
+        res.json({ books });
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
     },
   };
 }
