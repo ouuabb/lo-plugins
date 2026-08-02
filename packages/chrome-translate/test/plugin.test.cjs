@@ -23,7 +23,7 @@ function createMockContext(existingResources = []) {
   const resources = [...existingResources];
   return {
     config: () => ({ exportFilePath: '' }),
-    logger: { log: () => {}, error: () => {}, debug: () => {}, warn: () => {} },
+    logger: { info: () => {}, log: () => {}, error: () => {}, debug: () => {}, warn: () => {} },
     extensions: { register: () => {} },
     resources: {
       async create(candidate) {

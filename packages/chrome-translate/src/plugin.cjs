@@ -73,7 +73,7 @@ class ChromeTranslatePlugin extends ResourceProvider {
     }
 
     if (!await fs.pathExists(filePath)) {
-      ctx.logger.log(`[chrome-translate] 导出文件不存在: ${filePath}`);
+      ctx.logger.info(`[chrome-translate] 导出文件不存在: ${filePath}`);
       return [];
     }
 
@@ -90,13 +90,13 @@ class ChromeTranslatePlugin extends ResourceProvider {
       records = [records];
     }
 
-    ctx.logger.log(`[chrome-translate] 读取到 ${records.length} 条翻译记录`);
+    ctx.logger.info(`[chrome-translate] 读取到 ${records.length} 条翻译记录`);
 
     // 去重：查询已有 Resource 中的 recordId
     const existing = await this._getExistingRecordIds(ctx);
     const unsynced = records.filter(r => r.recordId && !existing.has(r.recordId));
 
-    ctx.logger.log(
+    ctx.logger.info(
       `[chrome-translate] 去重后 ${unsynced.length} 条需要创建` +
       `（已有 ${existing.size} 条，跳过 ${records.length - unsynced.length} 条）`
     );
@@ -154,13 +154,13 @@ class ChromeTranslatePlugin extends ResourceProvider {
       ctx.logger.error(`[chrome-translate] watch 错误: ${e.message}`);
     });
 
-    ctx.logger.log(`[chrome-translate] 开始监听: ${filePath}`);
+    ctx.logger.info(`[chrome-translate] 开始监听: ${filePath}`);
 
     // 返回停止函数
     return () => {
       clearTimeout(debounceTimer);
       watcher.close();
-      ctx.logger.log(`[chrome-translate] 停止监听: ${filePath}`);
+      ctx.logger.info(`[chrome-translate] 停止监听: ${filePath}`);
     };
   }
 
@@ -194,7 +194,7 @@ class ChromeTranslatePlugin extends ResourceProvider {
         created.push({ rid: resource.rid, recordId: record.recordId });
       }
 
-      ctx.logger.log(
+      ctx.logger.info(
         `[chrome-translate] HTTP 推送: 收到 ${records.length} 条, ` +
         `创建 ${created.length} 条, 跳过 ${records.length - created.length} 条`
       );
