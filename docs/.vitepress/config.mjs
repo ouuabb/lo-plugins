@@ -31,6 +31,7 @@ export default defineConfig({
           items: [
             { text: 'Chrome 划词翻译', link: '/plugins/chrome-translate' },
             { text: 'EPUB 阅读', link: '/plugins/epub-reader' },
+            { text: 'EPUB 书库', link: '/plugins/epub-library' },
           ],
         },
       ],

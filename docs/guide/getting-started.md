@@ -37,6 +37,8 @@ npm run docs:build
 lo-plugins/
   packages/
     chrome-translate/    # Chrome 划词翻译插件
+    epub-reader/         # EPUB 阅读插件（解析 + Web 阅读器 + CLI）
+    epub-library/        # EPUB 书库展示插件（3D 书架）
   shared/
     utils/               # 共享工具（dedup, recordId）
     index.cjs            # 共享模块入口

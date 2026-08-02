@@ -175,10 +175,35 @@ EPUB 文件本身作为内容源：
 
 EPUB 内容使用稳定的位置标识，不依赖页码或屏幕位置（不同环境下排版会变化）。
 
-定位格式：
+插件存在两套定位格式：
+
+### 1. CFI 格式（Web 阅读器使用）
+
+Web 阅读器（`reader.html`）采用 EPUB CFI（Canonical Fragment Identifier）作为定位标识，基于 DOM 节点路径 + 文本偏移，可精确恢复文本选区：
 
 ```
-chapter:<spineIndex>                  — 章节级定位
+epubcfi(<spineIndex>!<startPath>:<startOffset>,<endPath>:<endOffset>)
+```
+
+- `spineIndex` — spine 中的章节序号（从 0 开始）
+- `<path>` — 元素/文本节点路径，编码规则：元素节点 `step=(childIndex+1)*2`，文本节点 `step=(childIndex+1)*2+1`，以 `/` 分隔
+- `<offset>` — 文本节点内的字符偏移
+
+示例：
+
+```
+epubcfi(2!/2:0,/2:0)              → 第 3 章开头（章节级）
+epubcfi(2!/4/2:12,/4/2:24)        → 第 3 章中某段落的第 12-24 字符
+```
+
+> Web 阅读器保存阅读状态、高亮、书签、笔记时均使用 CFI 格式。
+
+### 2. 章节字符偏移格式（CLI 命令使用）
+
+终端命令（`epub:read` / `epub:highlight` / `epub:bookmark` / `epub:note`）使用更简单的章节级标识，由 `epubParser.makeLocation()` 生成：
+
+```
+chapter:<spineIndex>                     — 章节级定位
 chapter:<spineIndex>:offset:<charOffset> — 章节内字符偏移
 ```
 
@@ -188,6 +213,12 @@ chapter:<spineIndex>:offset:<charOffset> — 章节内字符偏移
 chapter:0                  → 第 1 章
 chapter:2:offset:1234      → 第 3 章第 1234 字符处
 ```
+
+### 兼容性
+
+- Web 阅读器的 `parseCFISpineIndex` 同时解析 CFI 和旧格式 `chapter:X:offset:Y`，可恢复由 CLI 保存的阅读位置
+- CLI 的 `parseLocation` 仅解析 `chapter:X:offset:Y`，无法从 CFI 字符串提取正确的章节号
+- 如需跨 Web/CLI 共享阅读位置，建议以 Web 阅读器为主
 
 用于：
 
@@ -211,6 +242,8 @@ lo ext epub:read <rid>
 - 翻页操作：`n` 下一章 / `p` 上一章 / 数字跳转 / `q` 退出
 - 自动保存阅读进度（章节位置 + 进度百分比）
 - 非 TTY 环境下只显示当前章节并保存进度
+
+> 进度恢复依赖 `parseLocation` 解析 `state.location`，仅识别 `chapter:X:offset:Y` 格式。若该书最近一次阅读发生在 Web 阅读器（保存为 CFI 格式），CLI 无法解析章节号，将从第 1 章开始。
 
 ### epub:info — 元信息
 
@@ -236,6 +269,8 @@ lo ext epub:note <rid> [--quote <引用文本>] [--location <位置>]
 1. 交互式输入笔记内容（Markdown 格式，空行结束）
 2. 创建 note Resource，metadata 包含 `sourceResource`、`location`、`quote`
 3. 建立 `source-of` 关系：EPUB Resource → 笔记 Resource
+
+> CLI 命令每次调用都会新建笔记，不进行去重；如需"同 location 仅一条笔记"的去重行为，请使用 Web 阅读器的 `POST /api/plugins/epub-reader/notes` 端点。
 
 ### epub:notes — 列出关联笔记
 
@@ -321,7 +356,7 @@ lo serve
 - **文本选择 → 标注**：选中文字后弹出工具栏，支持高亮（4 色）、书签、笔记
 - **高亮管理**：点击高亮可删除，4 种颜色（黄/绿/蓝/粉）
 - **书签侧边栏**：点击跳转，悬停删除
-- **笔记创建**：选中文字 → 笔记 → 输入内容 → 自动创建 note Resource + `source-of` 关系
+- **笔记创建**：选中文字 → 笔记 → 输入内容 → 自动创建 note Resource + `source-of` 关系；同一 EPUB + 同一 location 只保留一条笔记，再次提交将更新已有笔记的 `content` / `quote`（按 `source-of` 关系 metadata 中的 `location` 去重）
 - **阅读进度**：自动保存到插件 SQLite，重新打开时恢复
 - **阅读设置**：字号（14-28px）、主题（浅色/深色/护眼），本地存储
 
@@ -340,9 +375,10 @@ lo serve
 | GET | `/api/plugins/epub-reader/bookmarks` | 书签列表（?rid=xxx） |
 | POST | `/api/plugins/epub-reader/bookmarks` | 添加书签（body: {rid, location, title?}） |
 | DELETE | `/api/plugins/epub-reader/bookmarks` | 删除书签（body: {rid, id}） |
-| POST | `/api/plugins/epub-reader/notes` | 创建笔记 Resource + source-of 关系（body: {rid, content, quote?, location?}） |
+| POST | `/api/plugins/epub-reader/notes` | 创建或更新笔记（同 EPUB + 同 location 去重；body: {rid, content, quote?, location?}） |
 
 > 路由为精确匹配（非路径参数），rid 通过查询参数或 body 传递。
+> `/notes` 端点的去重逻辑：先按 `rid` 查询所有 `source-of` 关系，匹配 metadata.location 与请求 location 相同的记录；命中则更新该 note 的 `content`/`quote` 与关系 metadata，未命中才新建 note Resource 并建立关系。`location` 为空字符串时按空字符串匹配（即每本书至多一条无定位笔记）。
 
 ## 内部模块
 
