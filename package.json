@@ -1,5 +1,6 @@
 {
   "name": "lo-plugins",
+  "packageManager": "yarn@1.22.22",
   "version": "0.1.0",
   "private": true,
   "description": "lo 官方插件源码仓库",
