@@ -7,8 +7,8 @@
     "author": "lo Project",
     "main": "src/index.cjs",
     "downloadUrl": "chrome-translate-0.1.0.tar.gz",
-    "checksum": "e7757c49b63ad9ff0e53d556b846ba2f2453e76c90fb9b0c08eabb652a8d8241",
-    "size": 11855
+    "checksum": "4090ef974ee77373057c06f631ffda5a83f354b4ab508426a55773842d98f143",
+    "size": 11856
   },
   {
     "id": "epub-library",
@@ -18,8 +18,8 @@
     "author": "lo Project",
     "main": "src/index.cjs",
     "downloadUrl": "epub-library-0.1.0.tar.gz",
-    "checksum": "e39106af22789f100fbd2cc9df440ab118134fd6ad2c533673ee36e2d117c3a8",
-    "size": 5998
+    "checksum": "cf385a76e68624000ddd9e8fd0497470f0556f4bb549242a52f76ca27ddde3f7",
+    "size": 5997
   },
   {
     "id": "epub-reader",
@@ -29,7 +29,7 @@
     "author": "lo Project",
     "main": "src/index.cjs",
     "downloadUrl": "epub-reader-0.1.0.tar.gz",
-    "checksum": "003e11f76f27713fbf8b3e3105030f1b2e8a8e125adb5200fe505392667c6963",
-    "size": 24320
+    "checksum": "0277db15e6ceacd27bed32086d1a789c332527b734d474276ff91184175e263b",
+    "size": 24325
   }
 ]
