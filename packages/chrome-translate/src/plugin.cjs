@@ -20,7 +20,7 @@
  *     timestamp:    翻译时间 ISO 8601
  */
 
-const { ResourceProvider, ResourceBuilder } = require('@lo/sdk');
+const { ResourceProvider, ResourceBuilder } = require('@lo/plugins-sdk');
 const fsp = require('fs/promises');
 const nativeFs = require('fs');
 const path = require('path');

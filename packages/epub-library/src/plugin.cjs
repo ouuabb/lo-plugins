@@ -10,7 +10,7 @@
  */
 let Plugin;
 try {
-  Plugin = require('@lo/sdk/Plugin');
+  Plugin = require('@lo/plugins-sdk/Plugin');
 } catch {
   Plugin = class MinimalPlugin {
     constructor() { this._context = null; this._enabled = false; }

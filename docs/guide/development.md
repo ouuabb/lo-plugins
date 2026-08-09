@@ -41,9 +41,9 @@ https://ouuabb.github.io/lo-plugins/index.json
 
 用户侧通过 `lo plugin install` 从该地址安装（可用 `LO_PLUGIN_REGISTRY` 环境变量覆盖）。
 
-## 基于 lo-sdk 开发
+## 基于 lo-plugins-sdk 开发
 
-所有插件基于 `@lo/sdk` 开发，与 lo Core 解耦。SDK 提供以下核心模块：
+所有插件基于 `@lo/plugins-sdk` 开发，与 lo Core 解耦。SDK 提供以下核心模块：
 
 | 模块 | 说明 |
 |------|------|
@@ -72,7 +72,7 @@ created → loaded → initialized → enabled → disabled → disposed
 资源发现插件继承 `ResourceProvider`，实现 `discover()` 方法：
 
 ```javascript
-const { ResourceProvider, ResourceBuilder } = require('@lo/sdk');
+const { ResourceProvider, ResourceBuilder } = require('@lo/plugins-sdk');
 
 class MyPlugin extends ResourceProvider {
   async discover(ctx, source) {

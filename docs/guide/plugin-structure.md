@@ -107,10 +107,10 @@ contributes: {
 
 ## src/plugin.cjs
 
-插件主类，继承 `@lo/sdk` 的基类：
+插件主类，继承 `@lo/plugins-sdk` 的基类：
 
 ```javascript
-const { ResourceProvider } = require('@lo/sdk');
+const { ResourceProvider } = require('@lo/plugins-sdk');
 
 class MyPlugin extends ResourceProvider {
   manifest() { return require('./manifest.cjs'); }

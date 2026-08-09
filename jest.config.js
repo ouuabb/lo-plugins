@@ -1,13 +1,13 @@
 const path = require('path');
 const fs = require('fs');
 
-const sdkPath = path.resolve(__dirname, '../lo-sdk/src/index.cjs');
+const sdkPath = path.resolve(__dirname, '../lo-plugins-sdk/src/index.cjs');
 
 const moduleNameMapper = {};
 
-// 本地开发时映射 @lo/sdk；CI 环境下 lo-sdk 不存在则跳过映射
+// 本地开发时映射 @lo/plugins-sdk；CI 环境下 lo-plugins-sdk 不存在则跳过映射
 if (fs.existsSync(sdkPath)) {
-  moduleNameMapper['^@lo/sdk$'] = sdkPath;
+  moduleNameMapper['^@lo/plugins-sdk$'] = sdkPath;
 }
 
 module.exports = {

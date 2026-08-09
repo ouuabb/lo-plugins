@@ -13,7 +13,7 @@ cd lo-plugins
 npm install
 ```
 
-> 本地开发时需要 lo-sdk 作为同级目录存在（`../lo-sdk/`），Jest 会自动映射 `@lo/sdk` 模块。
+> 本地开发时需要 lo-plugins-sdk 作为同级目录存在（`../lo-plugins-sdk/`），Jest 会自动映射 `@lo/plugins-sdk` 模块。
 
 ## 运行测试
 
@@ -48,7 +48,7 @@ lo-plugins/
 
 1. 在 `packages/` 下创建新目录
 2. 创建 `plugin.json`（插件清单）和 `src/plugin.cjs`（插件入口）
-3. 继承 `@lo/sdk` 的 `ResourceProvider` 或 `Plugin` 基类
+3. 继承 `@lo/plugins-sdk` 的 `ResourceProvider` 或 `Plugin` 基类
 4. 编写测试（`test/` 目录下）
 5. 运行 `npm test` 验证
 

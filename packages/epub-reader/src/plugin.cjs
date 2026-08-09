@@ -24,10 +24,10 @@
  * 不继承 ResourceProvider：EPUB 插件不需要 discover/watch（文件由用户主动 import）。
  */
 
-// 条件 require @lo/sdk：lo 仓库环境有 @lo/sdk，测试环境无则用最小基类
+// 条件 require @lo/plugins-sdk：lo 仓库环境有 @lo/plugins-sdk，测试环境无则用最小基类
 let Plugin;
 try {
-  Plugin = require('@lo/sdk/Plugin');
+  Plugin = require('@lo/plugins-sdk/Plugin');
 } catch {
   Plugin = class MinimalPlugin {
     constructor() { this._context = null; this._manifest = null; this._enabled = false; }
