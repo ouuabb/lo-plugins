@@ -197,7 +197,7 @@ describe('getDataDir / getEpubFilePath', () => {
   });
 
   test('getDataDir 支持绝对路径 dataDir', () => {
-    const abs = path.join('C:', 'abs', 'data');
+    const abs = path.join(__dirname, 'custom', 'data');
     const c = createMockCtx({ _config: { dataDir: abs } });
     expect(getDataDir(c)).toBe(abs);
   });
