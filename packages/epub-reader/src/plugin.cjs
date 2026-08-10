@@ -78,7 +78,7 @@ class EpubReaderPlugin extends Plugin {
 
   /**
    * 注册 Web 阅读器 HTTP 端点
-   * handler 绑定到当前 context，通过 ctx.resources / ctx.getRepository() 访问 lo Core
+   * handler 绑定到当前 context，通过 ctx.resources / ctx.relations / ctx.config / ctx.repoPath 访问 lo Core
    */
   _registerHttpEndpoints(extRegistry, context) {
     const handlers = createHandlers(context);

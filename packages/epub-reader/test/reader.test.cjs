@@ -6,7 +6,7 @@
  *
  * 测试策略：
  *   - 动态创建测试 EPUB 文件（复用 epubParser.test.cjs 的 EPUB 结构）
- *   - mock PluginContext：resources / relations / getRepository / config
+ *   - mock PluginContext：resources / relations / config / repoPath
  *   - mock req/res：捕获响应内容，验证状态码和数据
  */
 
@@ -121,24 +121,10 @@ function createMockContext(repoPath, epubFilePath) {
   return {
     _resources: resources,
     _relations: relations,
+    repoPath,
     config(key) {
       if (key === 'dataDir') return undefined; // 用默认值
       return undefined;
-    },
-    getRepository() {
-      return {
-        repoPath,
-        relationService: {
-          async getByFromRidAndType(fromRid, type) {
-            return relations.filter(r => r.from_rid === fromRid && r.type === type);
-          },
-          async update(id, updates) {
-            const rel = relations.find(r => r.id === id);
-            if (rel && updates.metadata) rel.metadata = updates.metadata;
-            return rel;
-          },
-        },
-      };
     },
     resources: {
       async getByRid(rid) { return resources.get(rid) || null; },
@@ -159,8 +145,18 @@ function createMockContext(repoPath, epubFilePath) {
     },
     relations: {
       async create(candidate) {
-        const rel = { id: relations.length + 1, ...candidate };
+        const rel = { id: String(relations.length + 1), ...candidate };
         relations.push(rel);
+        return rel;
+      },
+      async getByFromRidAndType(fromRid, type) {
+        return relations.filter(r => r.from_rid === fromRid && r.type === type);
+      },
+      async update(id, updates) {
+        const rel = relations.find(r => r.id === id);
+        if (rel && updates.metadata) {
+          rel.metadata = { ...(rel.metadata || {}), ...updates.metadata };
+        }
         return rel;
       },
     },

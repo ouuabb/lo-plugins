@@ -2,7 +2,9 @@
  * commands — EPUB 阅读插件的 CLI 命令处理
  *
  * 通过 commands 扩展点注册，用户通过 `lo ext epub:<name>` 调用。
- * 命令 handler 签名：async run(args, ctx)，ctx = { repo, logger, args }
+ * 命令 handler 签名：async run(args, ctx)，ctx 为 SDK PluginContext facade
+ * （仅暴露 ctx.resources / ctx.relations / ctx.config / ctx.repoPath / ctx.logger，
+ *  不允许插件直接触碰 lo Core Repository）。
  *
  * 命令列表：
  *   epub:open <rid>                 — 在浏览器中打开 Web 阅读器
@@ -21,36 +23,42 @@ const { parseEpub } = require('./epubParser.cjs');
 const { createStore } = require('./store.cjs');
 
 /**
- * 获取数据目录路径
+ * 获取数据目录路径（经 facade：ctx.config + ctx.repoPath）
  */
-function getDataDir(repo) {
-  const dataDir = '.lo/plugins/epub-reader';
-  return path.join(repo.repoPath, dataDir);
+function getDataDir(ctx) {
+  const configDataDir = ctx.config ? ctx.config('dataDir') : undefined;
+  const dataDir = configDataDir || '.lo/plugins/epub-reader';
+  if (path.isAbsolute(dataDir)) return dataDir;
+  return path.join(ctx.repoPath, dataDir);
 }
 
 /**
- * 获取 EPUB 文件绝对路径
+ * 获取 EPUB 文件绝对路径（经 facade：ctx.repoPath）
  */
-function getEpubFilePath(repo, resource) {
+function getEpubFilePath(ctx, resource) {
   if (!resource) throw new Error('资源不存在');
   if (resource.type !== 'epub') throw new Error(`资源类型不是 epub: ${resource.type}`);
   const filePath = resource.path || resource.filePath || '';
   if (!filePath) throw new Error('资源缺少文件路径');
-  return path.isAbsolute(filePath) ? filePath : path.join(repo.repoPath, filePath);
+  return path.isAbsolute(filePath) ? filePath : path.join(ctx.repoPath, filePath);
 }
 
 // ── epub:info — 显示元信息 ──
 
 async function info(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   if (!rid) {
     logger.info('用法: lo ext epub:info <rid>');
     return;
   }
 
-  const resource = await repo.getResource(rid);
-  const filePath = getEpubFilePath(repo, resource);
+  const resource = await ctx.resources.getByRid(rid);
+  if (!resource) {
+    logger.info('错误: 资源不存在');
+    return;
+  }
+  const filePath = getEpubFilePath(ctx, resource);
   const book = parseEpub(filePath);
 
   logger.info(`\n《${book.title}》`);
@@ -61,7 +69,7 @@ async function info(args, ctx) {
   logger.info(`  总字数: ${book.chapters.reduce((s, c) => s + c.charCount, 0)}`);
 
   // 阅读状态
-  const store = createStore(getDataDir(repo));
+  const store = createStore(getDataDir(ctx));
   const state = await store.getReadingState(rid);
   if (state) {
     logger.info(`\n阅读状态:`);
@@ -87,7 +95,7 @@ async function info(args, ctx) {
 // ── epub:note — 创建笔记 ──
 
 async function note(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   if (!rid) {
     logger.info('用法: lo ext epub:note <rid> [--quote <引用文本>] [--location <位置>]');
@@ -101,7 +109,7 @@ async function note(args, ctx) {
   const location = locIdx >= 0 ? args[locIdx + 1] : '';
 
   // 确认 EPUB 资源存在
-  const epubResource = await repo.getResource(rid);
+  const epubResource = await ctx.resources.getByRid(rid);
   if (!epubResource) {
     logger.info('错误: EPUB 资源不存在');
     return;
@@ -134,21 +142,27 @@ async function note(args, ctx) {
     return;
   }
 
-  // 创建笔记 Resource（2.md §5.2 阅读笔记）
-  const noteResource = await repo.createResource('note', content, {
-    title: `笔记: ${epubResource.title || epubResource.name || rid}`,
+  // 创建笔记 Resource（2.md §5.2 阅读笔记；内容走 metadata，与 HTTP reader 一致）
+  const bookTitle = (epubResource.metadata && epubResource.metadata.title) || epubResource.title || epubResource.name || rid;
+  const noteResource = await ctx.resources.create({
+    type: 'note',
+    name: `笔记: ${bookTitle}`,
     metadata: {
+      title: bookTitle,
       sourceResource: rid,
       location: location,
       quote: quote,
+      content: content,
     },
   });
 
   // 建立来源关系（2.md §9 数据关系）
   const noteRid = noteResource.rid || noteResource.id || noteResource;
-  await repo.createRelation(rid, noteRid, 'source-of', {
-    location: location,
-    quote: quote,
+  await ctx.relations.create({
+    from_rid: rid,
+    to_rid: noteRid,
+    type: 'source-of',
+    metadata: { location: location, quote: quote },
   });
 
   logger.info(`\n笔记已创建: ${noteRid}`);
@@ -158,26 +172,25 @@ async function note(args, ctx) {
 // ── epub:notes — 列出关联笔记 ──
 
 async function notes(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   if (!rid) {
     logger.info('用法: lo ext epub:notes <rid>');
     return;
   }
 
-  // 通过 outgoing links 查找 source-of 关系的笔记
-  const links = await repo.getOutgoingLinks(rid);
-  const noteLinks = (links || []).filter(l => l.type === 'source-of');
+  // 通过 relations facade 查找 source-of 关系的笔记
+  const noteRelations = await ctx.relations.getByFromRidAndType(rid, 'source-of');
 
-  if (noteLinks.length === 0) {
+  if (!noteRelations || noteRelations.length === 0) {
     logger.info('暂无关联笔记');
     return;
   }
 
-  logger.info(`\n关联笔记 (${noteLinks.length} 条):\n`);
-  for (const link of noteLinks) {
-    const noteRid = link.to;
-    const note = await repo.getResource(noteRid);
+  logger.info(`\n关联笔记 (${noteRelations.length} 条):\n`);
+  for (const rel of noteRelations) {
+    const noteRid = rel.to_rid;
+    const note = await ctx.resources.getByRid(noteRid);
     const meta = note && note.metadata ? note.metadata : {};
     logger.info(`  ${noteRid}  ${note ? (note.title || note.name || '') : '(已删除)'}`);
     if (meta.quote) logger.info(`    引用: ${meta.quote.substring(0, 50)}...`);
@@ -190,7 +203,7 @@ async function notes(args, ctx) {
 // ── epub:highlight — 添加高亮 ──
 
 async function highlight(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   const location = args[1];
   const text = args.slice(2).join(' ');
@@ -201,7 +214,7 @@ async function highlight(args, ctx) {
     return;
   }
 
-  const store = createStore(getDataDir(repo));
+  const store = createStore(getDataDir(ctx));
   const entry = await store.addHighlight(rid, { location, text });
   logger.info(`高亮已添加: ${entry.id}`);
   logger.info(`  位置: ${entry.location}`);
@@ -211,14 +224,14 @@ async function highlight(args, ctx) {
 // ── epub:highlights — 列出高亮 ──
 
 async function highlights(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   if (!rid) {
     logger.info('用法: lo ext epub:highlights <rid>');
     return;
   }
 
-  const store = createStore(getDataDir(repo));
+  const store = createStore(getDataDir(ctx));
   const list = await store.getHighlights(rid);
 
   if (list.length === 0) {
@@ -239,7 +252,7 @@ async function highlights(args, ctx) {
 // ── epub:bookmark — 添加书签 ──
 
 async function bookmark(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   const location = args[1];
   const title = args.slice(2).join(' ') || '';
@@ -249,7 +262,7 @@ async function bookmark(args, ctx) {
     return;
   }
 
-  const store = createStore(getDataDir(repo));
+  const store = createStore(getDataDir(ctx));
   const entry = await store.addBookmark(rid, { location, title });
   logger.info(`书签已添加: ${entry.id}`);
   logger.info(`  位置: ${entry.location}`);
@@ -259,14 +272,14 @@ async function bookmark(args, ctx) {
 // ── epub:bookmarks — 列出书签 ──
 
 async function bookmarks(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   if (!rid) {
     logger.info('用法: lo ext epub:bookmarks <rid>');
     return;
   }
 
-  const store = createStore(getDataDir(repo));
+  const store = createStore(getDataDir(ctx));
   const list = await store.getBookmarks(rid);
 
   if (list.length === 0) {
@@ -297,7 +310,7 @@ function readStdin() {
 // ── epub:open — 浏览器打开 Web 阅读器 ──
 
 async function open(args, ctx) {
-  const { repo, logger } = ctx;
+  const logger = ctx.logger;
   const rid = args[0];
   if (!rid) {
     logger.info('用法: lo ext epub:open <rid>');
@@ -305,7 +318,7 @@ async function open(args, ctx) {
   }
 
   // 确认资源存在
-  const resource = await repo.getResource(rid);
+  const resource = await ctx.resources.getByRid(rid);
   if (!resource) {
     logger.info('错误: 资源不存在');
     return;
@@ -315,7 +328,9 @@ async function open(args, ctx) {
     return;
   }
 
-  const url = `http://127.0.0.1:8765/api/plugins/epub-reader/reader?rid=${rid}`;
+  // 阅读器地址经配置下发，不在插件内硬编码端口
+  const readerBaseUrl = (ctx.config && ctx.config('readerBaseUrl')) || 'http://127.0.0.1:8765';
+  const url = `${readerBaseUrl.replace(/\/$/, '')}/api/plugins/epub-reader/reader?rid=${rid}`;
   const { exec } = require('child_process');
   const platform = process.platform;
   let cmd;

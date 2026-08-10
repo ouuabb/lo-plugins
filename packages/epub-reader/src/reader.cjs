@@ -54,10 +54,9 @@ function parseQuery(req) {
  */
 function getDataDir(ctx) {
   const configDataDir = ctx.config('dataDir') || '.lo/plugins/epub-reader';
-  const repo = ctx.getRepository();
   return path.isAbsolute(configDataDir)
     ? configDataDir
-    : path.join(repo.repoPath, configDataDir);
+    : path.join(ctx.repoPath, configDataDir);
 }
 
 /**
@@ -87,8 +86,7 @@ async function getEpubResource(ctx, rid) {
 function getEpubFilePath(ctx, resource) {
   const filePath = resource.path || resource.filePath || '';
   if (!filePath) throw new Error('资源缺少文件路径');
-  const repo = ctx.getRepository();
-  return path.isAbsolute(filePath) ? filePath : path.join(repo.repoPath, filePath);
+  return path.isAbsolute(filePath) ? filePath : path.join(ctx.repoPath, filePath);
 }
 
 /** EPUB 解析结果缓存：rid → book（避免每次章节请求都重新解析） */
@@ -335,8 +333,7 @@ function createHandlers(ctx) {
         const loc = location || '';
 
         // 查询该 EPUB 的所有 source-of 关系，按 location 匹配已有笔记
-        const repo = ctx.getRepository();
-        const relations = await repo.relationService.getByFromRidAndType(rid, 'source-of');
+        const relations = await ctx.relations.getByFromRidAndType(rid, 'source-of');
         const existing = relations.find(r =>
           r.metadata && r.metadata.location === loc
         );
@@ -355,11 +352,9 @@ function createHandlers(ctx) {
           };
           await ctx.resources.update(noteRid, { metadata: updatedMeta });
           // 同步更新 relation 的 quote
-          if (ctx.relations) {
-            await repo.relationService.update(existing.id, {
-              metadata: { location: loc, quote: quote || '' },
-            });
-          }
+          await ctx.relations.update(existing.id, {
+            metadata: { location: loc, quote: quote || '' },
+          });
           const updated = await ctx.resources.getByRid(noteRid);
           res.json({ ok: true, note: updated, updated: true });
         } else {
@@ -401,8 +396,7 @@ function createHandlers(ctx) {
         if (!rid || !location) {
           return res.status(400).json({ error: '缺少 rid 或 location' });
         }
-        const repo = ctx.getRepository();
-        const relations = await repo.relationService.getByFromRidAndType(rid, 'source-of');
+        const relations = await ctx.relations.getByFromRidAndType(rid, 'source-of');
         const existing = relations.find(r =>
           r.metadata && r.metadata.location === location
         );
